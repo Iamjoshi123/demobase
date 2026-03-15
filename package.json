@@ -1,0 +1,24 @@
+{
+  "name": "agentic-demo-brain",
+  "private": true,
+  "scripts": {
+    "stagehand:bridge": "node stagehand-bridge/server.mjs",
+    "start:cloud": "cmd /c scripts\\start-cloud-stagehand.cmd",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "cd backend && C:/Python313/python.exe -m pytest tests/test_api.py tests/test_api_validation.py tests/test_browser_executor.py tests/test_credentials_api.py tests/test_planner.py tests/test_policy_engine.py tests/test_retrieval.py tests/test_summary.py && cd ../frontend && npm run test:unit",
+    "test:integration": "cd backend && C:/Python313/python.exe -m pytest tests/test_browser_integration.py tests/test_integration_api_flows.py tests/test_live_session_api.py tests/test_voice_contract.py && cd ../frontend && npm run test:integration",
+    "seed:acceptance": "cd backend && C:/Python313/python.exe -m app.seed",
+    "test:acceptance": "cd frontend && npm run test:acceptance",
+    "test:e2e": "cd frontend && npm run test:e2e",
+    "test:all": "npm run lint && npm run typecheck && npm run coverage && npm run test:e2e",
+    "coverage": "cd backend && C:/Python313/python.exe -m pytest && cd ../frontend && npm run test:coverage",
+    "lint": "cd backend && C:/Python313/python.exe -m ruff check app tests && cd ../frontend && npm run lint",
+    "typecheck": "cd frontend && npm run typecheck",
+    "sanity": "cd backend && C:/Python313/python.exe -c \"import app.main, app.seed, app.services.planner, app.browser.executor, app.voice.session, app.live.runtime\" && cd ../frontend && npm run build",
+    "livekit:up": "docker compose up -d livekit",
+    "livekit:down": "docker compose stop livekit"
+  },
+  "dependencies": {
+    "@browserbasehq/stagehand": "^3.1.0"
+  }
+}

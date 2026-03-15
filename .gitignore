@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+venv/
+.venv/
+*.db
+
+# Node
+node_modules/
+.next/
+out/
+
+# Environment
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data
+*.db-journal
+backend/data/
+uploads/
+*-out.log
+*-err.log
+.coverage
+coverage.xml
+backend/coverage.xml
+frontend/coverage/
+frontend/test-results/
+data/screenshots/
+*.tsbuildinfo

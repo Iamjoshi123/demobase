@@ -1,0 +1,29 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip install fastapi uvicorn pydantic pydantic-settings sqlmodel cryptography python-multipart httpx python-dotenv pytest)",
+      "Bash(where python)",
+      "Bash(where pip)",
+      "Bash(where python3)",
+      "Bash(where pip3)",
+      "Read(//c/Users/Lenovo/AppData/Local/Programs/**)",
+      "Bash(ls /c/Python3*)",
+      "Read(//c/Users/Lenovo/flutter//**)",
+      "Bash(where node)",
+      "Bash(where npm)",
+      "Bash(node --version)",
+      "Bash(npm --version)",
+      "Bash(npm install)",
+      "Bash(npx next build)",
+      "Bash(node -e \":*)",
+      "Bash(curl -sL https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe -o /tmp/python-installer.exe)",
+      "Read(//tmp/**)",
+      "Bash(/c/Python313/python.exe -m pip install -r requirements.txt)",
+      "Bash(/c/Python313/python.exe -m app.seed)",
+      "Bash(/c/Python313/python.exe -m pytest tests/test_api.py -v)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\Lenovo\\OneDrive\\Desktop\\agent-vinod\\frontend\\src\\app\\demo"
+    ]
+  }
+}

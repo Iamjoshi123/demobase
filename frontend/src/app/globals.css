@@ -1,0 +1,196 @@
+@import url("https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-primary: #0a0a0b;
+  --bg-secondary: #141416;
+  --bg-tertiary: #1c1c1f;
+  --bg-elevated: #232326;
+  --text-primary: #edefef;
+  --text-secondary: #8e8e93;
+  --text-tertiary: #5a5a5e;
+  --accent-primary: #e8a84c;
+  --accent-primary-hover: #d4963e;
+  --accent-primary-muted: rgba(232, 168, 76, 0.12);
+  --accent-primary-glow: rgba(232, 168, 76, 0.06);
+  --success: #34c759;
+  --warning: #ff9f0a;
+  --error: #ff453a;
+  --info: #5ac8fa;
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.1);
+  --border-active: rgba(232, 168, 76, 0.3);
+  --demo-border: rgba(255, 255, 255, 0.08);
+  --demo-shadow: 0 0 80px rgba(232, 168, 76, 0.03);
+  --font-display: "Satoshi", var(--font-body), sans-serif;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display), sans-serif;
+    letter-spacing: -0.01em;
+  }
+
+  button,
+  input,
+  textarea {
+    font: inherit;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-2xl px-4 py-2.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+    background: var(--accent-primary);
+    color: #111214;
+  }
+
+  .btn-primary:hover {
+    background: var(--accent-primary-hover);
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center rounded-2xl px-4 py-2.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+    border: 1px solid var(--border-subtle);
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--text-primary);
+  }
+
+  .btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center justify-center rounded-2xl px-4 py-2.5 text-sm font-medium transition-colors;
+    background: rgba(255, 69, 58, 0.14);
+    color: #ffd2ce;
+  }
+
+  .input,
+  .textarea,
+  .stage-input {
+    @apply w-full rounded-2xl px-4 py-3 outline-none transition-all;
+    border: 1px solid var(--border-subtle);
+    background: rgba(255, 255, 255, 0.035);
+    color: var(--text-primary);
+  }
+
+  .input::placeholder,
+  .textarea::placeholder,
+  .stage-input::placeholder {
+    color: var(--text-tertiary);
+  }
+
+  .input:focus,
+  .textarea:focus,
+  .stage-input:focus {
+    border-color: var(--border-active);
+    box-shadow: 0 0 0 3px rgba(232, 168, 76, 0.08);
+  }
+
+  .card {
+    @apply rounded-[28px] p-6;
+    border: 1px solid var(--border-subtle);
+    background: rgba(255, 255, 255, 0.04);
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.16);
+  }
+
+  .badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-1 text-[11px] uppercase tracking-[0.12em];
+    border: 1px solid var(--border-subtle);
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--text-secondary);
+  }
+
+  .stage-pill {
+    @apply inline-flex items-center rounded-full px-3 py-1.5 text-[11px] uppercase tracking-[0.12em];
+    border: 1px solid var(--border-subtle);
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--text-secondary);
+  }
+
+  .stage-button-primary {
+    @apply inline-flex items-center justify-center rounded-2xl px-4 py-3 text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-50;
+    background: linear-gradient(180deg, #efb764 0%, #d4963e 100%);
+    color: #111214;
+    box-shadow: 0 18px 40px rgba(232, 168, 76, 0.18);
+  }
+
+  .stage-button-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 22px 45px rgba(232, 168, 76, 0.24);
+  }
+
+  .stage-button-secondary,
+  .stage-button-ghost {
+    @apply inline-flex items-center justify-center rounded-2xl px-4 py-3 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+    border: 1px solid var(--border-subtle);
+    color: var(--text-primary);
+  }
+
+  .stage-button-secondary {
+    background: rgba(255, 255, 255, 0.035);
+  }
+
+  .stage-button-secondary:hover,
+  .stage-button-ghost:hover {
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .stage-button-ghost {
+    background: transparent;
+    color: var(--text-secondary);
+  }
+
+  .font-display {
+    font-family: var(--font-display), sans-serif;
+  }
+}
+
+@layer utilities {
+  @keyframes pointer-ping-once {
+    0% {
+      transform: translate(-50%, -50%) scale(0.92);
+      opacity: 0.85;
+    }
+
+    70% {
+      transform: translate(-50%, -50%) scale(1.14);
+      opacity: 1;
+    }
+
+    100% {
+      transform: translate(-50%, -50%) scale(1);
+      opacity: 1;
+    }
+  }
+
+  .animate-ping-once {
+    animation: pointer-ping-once 240ms ease-out 1;
+  }
+}
