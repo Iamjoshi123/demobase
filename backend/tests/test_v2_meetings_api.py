@@ -72,6 +72,7 @@ def test_v2_meeting_turn_returns_personalized_demo_plan(
     assert response.json()["browser_instruction"] is None
     assert response.json()["next_actions"][0].startswith("fallback_recipe:")
     assert "Analytics Walkthrough" in response.json()["message"]["content"]
+    assert "walk you through" in response.json()["message"]["content"].lower()
 
 
 def test_v2_meeting_join_and_browser_plan_contract(
@@ -143,6 +144,7 @@ def test_v2_meeting_escalates_pricing_questions(client, workspace):
     assert response.json()["policy_decision"] == "escalate"
     assert response.json()["should_handoff"] is True
     assert "handoff_human_sales" in response.json()["next_actions"]
+    assert "walk you through the product" in response.json()["message"]["content"].lower()
 
 
 def test_v2_live_start_bridges_runtime_session(client, workspace, session, monkeypatch):

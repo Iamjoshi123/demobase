@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -26,6 +26,22 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/api-v2", () => ({
   apiV2: apiMock,
 }));
+
+class MockWebSocket {
+  static instances: MockWebSocket[] = [];
+  onmessage: ((event: { data: string }) => void) | null = null;
+  onclose: (() => void) | null = null;
+  url: string;
+
+  constructor(url: string) {
+    this.url = url;
+    MockWebSocket.instances.push(this);
+  }
+
+  close() {
+    this.onclose?.();
+  }
+}
 
 describe("MeetingPageV2", () => {
   function deferred<T>() {
@@ -116,6 +132,8 @@ describe("MeetingPageV2", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    MockWebSocket.instances = [];
+    vi.stubGlobal("WebSocket", MockWebSocket as any);
     mockBootstrap();
   });
 
@@ -191,6 +209,55 @@ describe("MeetingPageV2", () => {
 
     expect(apiMock.pauseLive).toHaveBeenCalledWith("meeting-1");
     expect(await screen.findByText("Live demo paused")).toBeInTheDocument();
+  });
+
+  it("renders a hidden decode video and a visible browser canvas for the stage", async () => {
+    const { container } = render(<MeetingPageV2 />);
+
+    expect(await screen.findByText("Everything is connected. Ask naturally.")).toBeInTheDocument();
+
+    const browserVideo = container.querySelector("video[aria-hidden='true']") as HTMLVideoElement | null;
+    const browserCanvas = container.querySelector("canvas") as HTMLCanvasElement | null;
+
+    expect(browserVideo).not.toBeNull();
+    expect(browserCanvas).not.toBeNull();
+    expect(browserVideo?.className).toContain("opacity-0");
+    expect(browserCanvas?.className).not.toContain("opacity-0");
+  });
+
+  it("does not render in-video annotations for browser interaction events", async () => {
+    apiMock.startLive.mockResolvedValueOnce({
+      mode: "live",
+      livekit_url: "ws://localhost:7880",
+      room_name: "meeting-meeting-1",
+      participant_token: "token",
+      participant_identity: "buyer-meeting-1",
+      participant_name: "Riley",
+      event_ws_url: "ws://localhost:8000/api/v2/meetings/meeting-1/events",
+      browser_session_id: "runtime-1",
+      capabilities_json: '{"voice":true,"video":true,"mock_media":true,"assist_controls":["pause","resume","next-step","restart"]}',
+      message: "Live meeting ready",
+    });
+
+    render(<MeetingPageV2 />);
+
+    expect(await screen.findByText("Everything is connected. Ask naturally.")).toBeInTheDocument();
+    expect(MockWebSocket.instances).toHaveLength(1);
+
+    act(() => {
+      MockWebSocket.instances[0].onmessage?.({
+        data: JSON.stringify({
+          type: "browser_click",
+          x: 320,
+          y: 180,
+          width: 1280,
+          height: 720,
+          label: "NO-ANNOTATION-LABEL",
+        }),
+      });
+    });
+
+    expect(screen.queryByText("NO-ANNOTATION-LABEL")).not.toBeInTheDocument();
   });
 
   it("sends a question and renders the agent next actions", async () => {

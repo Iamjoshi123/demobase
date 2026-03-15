@@ -19,7 +19,7 @@ from app.browser.stagehand_adapter import StagehandAdapter
 logger = logging.getLogger(__name__)
 
 FrameConsumer = Callable[[bytes, int, int], Awaitable[None]]
-DEFAULT_NAVIGATION_TIMEOUT_MS = 45000
+DEFAULT_NAVIGATION_TIMEOUT_MS = 90000
 
 
 @dataclass
@@ -180,6 +180,34 @@ class PlaywrightDriver(BrowserDriver):
                 narration=f"Navigated to {await self._page.title() or url}",
             )
         except Exception as e:
+            current_url = ""
+            page_title = ""
+            with_title = False
+            try:
+                current_url = self._page.url or ""
+            except Exception:
+                current_url = ""
+            if current_url and current_url != "about:blank":
+                try:
+                    page_title = await self._page.title()
+                    with_title = bool(page_title)
+                except Exception:
+                    page_title = ""
+                screenshot = await self._take_screenshot()
+                return ActionResult(
+                    success=True,
+                    action_type="navigate",
+                    target=url,
+                    duration_ms=int((time.time() - start) * 1000),
+                    screenshot_b64=screenshot,
+                    page_url=current_url,
+                    page_title=page_title or None,
+                    narration=(
+                        f"Navigated to {page_title or current_url}. The page is still finishing its initial load."
+                        if with_title or current_url
+                        else "Navigation started and the page is still loading."
+                    ),
+                )
             return ActionResult(
                 success=False,
                 action_type="navigate",

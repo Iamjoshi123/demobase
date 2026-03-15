@@ -73,8 +73,8 @@ class MeetingOrchestrator:
         if intent.policy_decision == "escalate":
             return MeetingTurn(
                 response_text=(
-                    "That question needs a human commercial conversation. "
-                    "I can keep showing product workflows while sales follows up."
+                    "That part is best handled by a human sales conversation. "
+                    "I can still walk you through the product and show the relevant workflow while they follow up."
                 ),
                 stage="handoff",
                 policy_decision="escalate",
@@ -184,16 +184,26 @@ async def _generate_answer_reply(
         "Answer the buyer directly. Ground the reply in the observed screen and documentation. "
         "Do not dump raw page text or raw URLs unless necessary."
     )
+    prompt_parts.append(
+        "Default to a simple live-demo policy: show while telling. "
+        "Walk the buyer through what is on screen now and the next UI area you would open."
+    )
+    prompt_parts.append(
+        "Sound empathetic and enthusiastic, but stay specific and grounded in the product."
+    )
     prompt_parts.append(f"Respond in {language_name(preferred_language)}.")
     if realtime:
         prompt_parts.append(
-            "This response will be spoken live. Keep it to one or two short sentences and sound natural."
+            "This response will be spoken live. Keep it to one or two short sentences, sound natural, "
+            "and make the walkthrough easy to follow."
         )
 
     system = (
-        "You are a high-signal demo agent. "
+        "You are a warm, high-signal demo agent. "
         "Answer only from the supplied product context. "
-        "If the buyer wants a walkthrough, mention the next concrete UI area you would show."
+        "Default to show while telling. "
+        "If the buyer wants a walkthrough, mention the concrete UI area you are showing now and the next thing you would open. "
+        "Sound empathetic and enthusiastic without overhyping."
     )
     if realtime:
         system += " Optimize for spoken conversation speed and natural turn-taking."
@@ -284,21 +294,21 @@ def _compose_direct_reply(
 
     if action_plan.strategy == "clarify":
         return (
-            "I'll start with the most relevant product area and walk you through it live."
+            "Absolutely. I'll start with the most relevant product area and walk you through it live."
             if realtime
-            else "I'll start with the most relevant product area and walk you through it in the live product."
+            else "Absolutely. I'll start with the most relevant product area and walk you through it in the live product."
         )
 
     if action_plan.strategy == "stagehand_first":
         target = _action_target_label(action_plan.candidate, observation, action_plan.stagehand_instruction)
         if realtime:
-            return f"I'll open {target} in {product_name} and explain it as we go."
-        return f"I'll open {target} in the live {product_name} experience and call out what matters as we go."
+            return f"Absolutely. I'll open {target} in {product_name} and walk you through what matters as we go."
+        return f"I'll open {target} in the live {product_name} experience and walk you through what matters as we go."
 
     if action_plan.strategy == "recipe_fallback" and recipe is not None:
         if realtime:
-            return f"I'll walk you through {recipe.name} live and point out the key steps."
-        return f"I'll use the {recipe.name} walkthrough in the live product and explain the key steps as I go."
+            return f"Absolutely. I'll walk you through {recipe.name} live and call out the key steps as we go."
+        return f"I'll use {recipe.name} in the live product and walk you through the key steps as we go."
 
     return _fallback_answer_reply(workspace, pipeline_result, recipe)
 
@@ -315,15 +325,15 @@ def _fallback_answer_reply(
     if observation.screen_summary and observation.active_module:
         return (
             f"Right now I'm on {observation.active_module}. "
-            f"{observation.screen_summary} I'll keep moving through the product and call out what matters."
+            f"{observation.screen_summary} I'll keep walking you through what you're seeing so it stays easy to follow."
         )
     if observation.screen_summary:
-        return f"Right now in {product_name}, {observation.screen_summary} I'll keep walking through the product live."
+        return f"Right now in {product_name}, {observation.screen_summary} I'll keep walking you through it live."
     if recipe is not None:
-        return f"I'll use the {recipe.name} walkthrough and explain the product as I go."
+        return f"I'll use the {recipe.name} walkthrough and walk you through the product as I go."
     if retrieval.context_text:
-        return f"Based on the product context, {retrieval.context_text[:220]} I'll keep the walkthrough moving live."
-    return "I'll lead the walkthrough from here and explain the product live as we go."
+        return f"Based on the product context, {retrieval.context_text[:220]} I'll keep the walkthrough moving and explain each step as we go."
+    return "I'll lead the walkthrough from here and show you each step while I explain it."
 
 
 async def _normalize_buyer_message_for_planning(buyer_message: str, preferred_language: str) -> str:

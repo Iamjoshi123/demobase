@@ -88,7 +88,6 @@ class LiveKitBrowserPublisher(MediaPublisher):
     def __init__(self) -> None:
         self._rtc: Any = None
         self._room: Any = None
-        self._browser_room: Any = None
         self._audio_output: Any = None
         self._video_source: Any = None
         self._video_track: Any = None
@@ -149,13 +148,6 @@ class LiveKitBrowserPublisher(MediaPublisher):
             f"Agent audio track is publishing from {agent_contract.participant_identity}.",
         )
 
-        resolved_browser_contract = browser_contract or agent_contract
-        self._browser_room = rtc.Room()
-        await self._browser_room.connect(
-            resolved_browser_contract.livekit_url,
-            resolved_browser_contract.token,
-        )
-
         self._video_source = rtc.VideoSource(width=1280, height=720)
         self._video_track = rtc.LocalVideoTrack.create_video_track("browser-video", self._video_source)
         video_options = rtc.TrackPublishOptions()
@@ -171,16 +163,16 @@ class LiveKitBrowserPublisher(MediaPublisher):
             video_options.video_encoding.max_framerate,
             video_options.video_encoding.max_bitrate,
         )
-        self._video_publication = await self._browser_room.local_participant.publish_track(self._video_track, video_options)
+        self._video_publication = await self._room.local_participant.publish_track(self._video_track, video_options)
         logger.info(
             "browser-video publication ready sid=%s name=%s participant=%s",
             getattr(self._video_publication, "sid", "unknown"),
             getattr(self._video_track, "name", "browser-video"),
-            resolved_browser_contract.participant_identity,
+            agent_contract.participant_identity,
         )
         await self._emit_startup_state(
             "browser_publisher_ready",
-            f"Browser video track is publishing from {resolved_browser_contract.participant_identity}.",
+            f"Browser video track is publishing from {agent_contract.participant_identity}.",
         )
 
         if settings.enable_voice:
@@ -225,9 +217,9 @@ class LiveKitBrowserPublisher(MediaPublisher):
             except Exception as exc:  # pragma: no cover - best-effort cleanup
                 logger.debug("Failed stopping browser frame stream: %s", exc)
 
-        if self._video_publication is not None and self._browser_room is not None:
+        if self._video_publication is not None and self._room is not None:
             with suppress(Exception):
-                await self._browser_room.local_participant.unpublish_track(self._video_publication.sid)
+                await self._room.local_participant.unpublish_track(self._video_publication.sid)
             self._video_publication = None
         if self._video_source is not None:
             try:
@@ -243,12 +235,6 @@ class LiveKitBrowserPublisher(MediaPublisher):
             except Exception as exc:  # pragma: no cover - best-effort cleanup
                 logger.debug("Failed disconnecting LiveKit room: %s", exc)
             self._room = None
-        if self._browser_room is not None:
-            try:
-                await self._browser_room.disconnect()
-            except Exception as exc:  # pragma: no cover - best-effort cleanup
-                logger.debug("Failed disconnecting browser LiveKit room: %s", exc)
-            self._browser_room = None
         self._audio_output = None
 
     async def _publish_track(self, track: Any, source: Any) -> None:

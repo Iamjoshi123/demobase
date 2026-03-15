@@ -15,16 +15,6 @@ import type {
 type ParsedMetadata = Record<string, unknown>;
 type SetupPhase = "creating" | "voice" | "browser" | "live" | "ready" | "failed";
 type BrowserStageState = "attaching" | "live" | "black_frames" | "errored";
-type PointerOverlayState = {
-  visible: boolean;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  label: string | null;
-  kind: "move" | "click" | "type" | "scroll";
-  pulse: number;
-};
 
 const LANGUAGE_OPTIONS = [
   { value: "en", label: "English" },
@@ -222,16 +212,6 @@ export default function MeetingPageV2() {
       return "en";
     }
   });
-  const [pointerOverlay, setPointerOverlay] = useState<PointerOverlayState>({
-    visible: false,
-    x: 640,
-    y: 360,
-    width: 1280,
-    height: 720,
-    label: null,
-    kind: "move",
-    pulse: 0,
-  });
   const [runtimeNote, setRuntimeNote] = useState("The stage is getting ready.");
   const [setupPhase, setSetupPhase] = useState<SetupPhase>("creating");
   const [setupProgress, setSetupProgress] = useState(8);
@@ -243,6 +223,8 @@ export default function MeetingPageV2() {
   const audioContainerRef = useRef<HTMLDivElement>(null);
   const browserVideoReadyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const browserVideoElementRef = useRef<HTMLVideoElement | null>(null);
+  const browserTrackReadyRef = useRef(false);
+  const browserStageStateRef = useRef<BrowserStageState>("attaching");
   const browserRenderFrameRef = useRef<number | null>(null);
   const browserRenderLogCounterRef = useRef(0);
   const browserAttachStartedAtRef = useRef<number | null>(null);
@@ -279,6 +261,14 @@ export default function MeetingPageV2() {
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    browserTrackReadyRef.current = browserTrackReady;
+  }, [browserTrackReady]);
+
+  useEffect(() => {
+    browserStageStateRef.current = browserStageState;
+  }, [browserStageState]);
 
   useEffect(() => {
     return () => {
@@ -423,7 +413,9 @@ export default function MeetingPageV2() {
     context.drawImage(video, 0, 0, width, height);
     browserRenderLogCounterRef.current += 1;
     const videoAverage = sampleCanvasBrightness(canvas);
-    if (videoAverage >= 6 && browserStageState !== "live") {
+    if (videoAverage >= 6 && browserStageStateRef.current !== "live") {
+      browserTrackReadyRef.current = true;
+      browserStageStateRef.current = "live";
       setBrowserTrackReady(true);
       setBrowserStageState("live");
       setRuntimeNote("Live browser stage is visible.");
@@ -435,11 +427,12 @@ export default function MeetingPageV2() {
       });
     } else if (
       videoAverage < 6 &&
-      !browserTrackReady &&
+      !browserTrackReadyRef.current &&
       browserAttachStartedAtRef.current !== null &&
       performance.now() - browserAttachStartedAtRef.current > 2500 &&
-      browserStageState !== "black_frames"
+      browserStageStateRef.current !== "black_frames"
     ) {
+      browserStageStateRef.current = "black_frames";
       setBrowserStageState("black_frames");
       setRuntimeNote("Browser track is attached, but frames are still rendering black.");
     }
@@ -574,25 +567,6 @@ export default function MeetingPageV2() {
     }
 
     if (event.type === "browser_pointer_move" || event.type === "browser_click" || event.type === "browser_scroll" || event.type === "browser_type") {
-      const x = typeof event.x === "number" ? event.x : 640;
-      const y = typeof event.y === "number" ? event.y : 360;
-      setPointerOverlay((previous) => ({
-        visible: true,
-        x,
-        y,
-        width: typeof event.width === "number" ? event.width : previous.width,
-        height: typeof event.height === "number" ? event.height : previous.height,
-        label: typeof event.label === "string" && event.label.trim() ? event.label : previous.label,
-        kind:
-          event.type === "browser_click"
-            ? "click"
-            : event.type === "browser_scroll"
-              ? "scroll"
-              : event.type === "browser_type"
-                ? "type"
-                : "move",
-        pulse: event.type === "browser_pointer_move" ? previous.pulse : previous.pulse + 1,
-      }));
       return;
     }
 
@@ -738,6 +712,8 @@ export default function MeetingPageV2() {
               requestedQuality:
                 typeof publication.videoQuality !== "undefined" ? publication.videoQuality : "unknown",
             });
+            browserTrackReadyRef.current = false;
+            browserStageStateRef.current = "attaching";
             setBrowserTrackReady(false);
             setBrowserStageState("attaching");
             setRuntimeNote("Browser track attached. Rendering live frames.");
@@ -755,6 +731,8 @@ export default function MeetingPageV2() {
               requestedQuality:
                 typeof publication.videoQuality !== "undefined" ? publication.videoQuality : "unknown",
             });
+            browserTrackReadyRef.current = false;
+            browserStageStateRef.current = "attaching";
             setBrowserTrackReady(false);
             setBrowserStageState("attaching");
             setRuntimeNote("Live browser video is playing.");
@@ -785,6 +763,8 @@ export default function MeetingPageV2() {
       if (track.kind === livekit.Track.Kind.Video) {
         browserVideoElementRef.current = null;
         stopBrowserCanvasRender();
+        browserTrackReadyRef.current = false;
+        browserStageStateRef.current = "attaching";
         setBrowserTrackReady(false);
         setBrowserStageState("attaching");
         browserAttachStartedAtRef.current = null;
@@ -988,16 +968,11 @@ export default function MeetingPageV2() {
 
       if (!capabilities.mock_media && live.livekit_url && live.participant_token) {
         await connectRoom(live);
-        try {
-          await apiV2.greetLive(targetMeetingId);
-        } catch {
-          appendSystemMessage("The room connected, but the intro greeting could not be played.");
-        }
-        } else {
+      } else {
         setBrowserTrackReady(false);
         setAudioReady(Boolean(capabilities.voice));
-        }
-        connectEvents(live);
+      }
+      connectEvents(live);
     } catch (cause: any) {
       setLiveError(cause.message || "Could not start the live meeting.");
       throw cause;
@@ -1192,7 +1167,7 @@ export default function MeetingPageV2() {
                 />
                 <video
                   ref={browserStageVideoRef}
-                  className="pointer-events-none absolute left-0 top-0 z-0 h-px w-px opacity-0"
+                  className="pointer-events-none absolute left-0 top-0 h-px w-px opacity-0"
                   autoPlay
                   playsInline
                   muted
@@ -1200,29 +1175,8 @@ export default function MeetingPageV2() {
                 />
                 <canvas
                   ref={browserCanvasRef}
-                  className="absolute inset-0 z-[1] h-full w-full"
+                  className="pointer-events-none absolute inset-0 z-[1] h-full w-full"
                 />
-                {pointerOverlay.visible && (
-                  <div className="pointer-events-none absolute inset-0 z-10">
-                    <div
-                      key={pointerOverlay.pulse}
-                      className={`absolute flex -translate-x-1/2 -translate-y-1/2 items-center gap-2 ${
-                        pointerOverlay.kind === "click" ? "animate-ping-once" : ""
-                      }`}
-                      style={{
-                        left: `${(pointerOverlay.x / Math.max(pointerOverlay.width, 1)) * 100}%`,
-                        top: `${(pointerOverlay.y / Math.max(pointerOverlay.height, 1)) * 100}%`,
-                      }}
-                    >
-                      <div className="h-5 w-5 rounded-full border border-[var(--accent-primary)] bg-[rgba(232,168,76,0.22)] shadow-[0_0_24px_rgba(232,168,76,0.45)]" />
-                      {pointerOverlay.label && (
-                        <span className="rounded-full border border-[var(--border-active)] bg-[rgba(20,20,22,0.86)] px-3 py-1 text-[11px] uppercase tracking-[0.08em] text-[var(--text-secondary)]">
-                          {pointerOverlay.label}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
                 {effectiveBrowserStageState !== "live" && (
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="max-w-lg space-y-3 text-center">

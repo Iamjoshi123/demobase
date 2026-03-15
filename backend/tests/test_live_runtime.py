@@ -122,7 +122,7 @@ async def test_live_runtime_start_returns_before_media_attaches(session, monkeyp
     result = await runtime.start(session, demo_session, workspace)
 
     assert result.buyer_contract.room_name == f"demo-{demo_session.id}"
-    assert requested_roles[:3] == ["buyer", "agent", "browser"]
+    assert requested_roles[:2] == ["buyer", "agent"]
 
     await asyncio.wait_for(media.ready.wait(), timeout=5)
     assert media.start_attempts >= 2

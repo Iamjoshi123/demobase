@@ -141,16 +141,6 @@ class LiveDemoRuntime:
             can_publish=True,
             can_subscribe=True,
         )
-        browser_contract = create_livekit_participant(
-            session.id,
-            role="browser",
-            name="Demo Browser",
-            room_name=buyer_contract.room_name,
-            identity=f"agent-browser-{session.id}",
-            can_publish=True,
-            can_subscribe=False,
-        )
-
         self._room_name = buyer_contract.room_name
         driver = get_active_driver(session.id)
         if driver is None:
@@ -171,7 +161,7 @@ class LiveDemoRuntime:
         self._startup_states.clear()
         self._greeting_sent = False
         self._greeting_requested = False
-        self._launch_media_start(driver, agent_contract, browser_contract)
+        self._launch_media_start(driver, agent_contract)
 
         session.mode = "live"
         session.live_status = "live"
@@ -740,17 +730,15 @@ class LiveDemoRuntime:
         self,
         driver: object,
         agent_contract: LiveKitParticipantContract,
-        browser_contract: LiveKitParticipantContract,
     ) -> None:
         if self._media_task and not self._media_task.done():
             return
-        self._media_task = asyncio.create_task(self._start_media_with_retry(driver, agent_contract, browser_contract))
+        self._media_task = asyncio.create_task(self._start_media_with_retry(driver, agent_contract))
 
     async def _start_media_with_retry(
         self,
         driver: object,
         agent_contract: LiveKitParticipantContract,
-        browser_contract: LiveKitParticipantContract,
     ) -> None:
         delays = [0.0, 1.0, 2.0, 4.0]
         last_error: Optional[Exception] = None
@@ -759,7 +747,6 @@ class LiveDemoRuntime:
             if delay_seconds > 0:
                 await asyncio.sleep(delay_seconds)
             attempt_contract = agent_contract
-            attempt_browser_contract = browser_contract
             if attempt > 1:
                 attempt_contract = create_livekit_participant(
                     self.session_id,
@@ -770,26 +757,15 @@ class LiveDemoRuntime:
                     can_publish=True,
                     can_subscribe=True,
                 )
-                attempt_browser_contract = create_livekit_participant(
-                    self.session_id,
-                    role="browser",
-                    name=browser_contract.participant_name,
-                    room_name=browser_contract.room_name,
-                    identity=f"agent-browser-{self.session_id}-{uuid.uuid4().hex[:8]}",
-                    can_publish=True,
-                    can_subscribe=False,
-                )
                 logger.info(
-                    "Retrying live media attach for session %s with fresh identities voice=%s browser=%s",
+                    "Retrying live media attach for session %s with fresh identity %s",
                     self.session_id,
                     attempt_contract.participant_identity,
-                    attempt_browser_contract.participant_identity,
                 )
             try:
                 await self._media.start(
                     driver,
                     attempt_contract,
-                    browser_contract=attempt_browser_contract,
                     on_transcript=self.handle_buyer_transcript,
                     on_speech_activity=self.handle_buyer_activity,
                     on_startup_state=self._handle_startup_state,

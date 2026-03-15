@@ -22,6 +22,8 @@ out/
 .idea/
 *.swp
 *.swo
+.ruff_cache/
+.claude/
 
 # OS
 .DS_Store
@@ -39,4 +41,5 @@ backend/coverage.xml
 frontend/coverage/
 frontend/test-results/
 data/screenshots/
+_artifacts/
 *.tsbuildinfo
