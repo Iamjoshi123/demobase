@@ -150,6 +150,20 @@ export interface SessionSummary {
   created_at: string;
 }
 
+export interface BrowserAction {
+  id: string;
+  session_id: string;
+  action_type: string;
+  target: string | null;
+  value: string | null;
+  status: string;
+  screenshot_path: string | null;
+  error_message: string | null;
+  narration: string | null;
+  duration_ms: number | null;
+  created_at: string;
+}
+
 export interface WorkspaceAnalytics {
   workspace_id: string;
   total_sessions: number;

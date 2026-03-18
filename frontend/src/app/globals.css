@@ -1,5 +1,3 @@
-@import url("https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&display=swap");
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -25,7 +23,7 @@
   --border-active: rgba(232, 168, 76, 0.3);
   --demo-border: rgba(255, 255, 255, 0.08);
   --demo-shadow: 0 0 80px rgba(232, 168, 76, 0.03);
-  --font-display: "Satoshi", var(--font-body), sans-serif;
+  --font-display: var(--font-body);
 }
 
 @layer base {
@@ -65,7 +63,7 @@
 
 @layer components {
   .btn-primary {
-    @apply inline-flex items-center justify-center rounded-2xl px-4 py-2.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
     background: var(--accent-primary);
     color: #111214;
   }
@@ -75,7 +73,7 @@
   }
 
   .btn-secondary {
-    @apply inline-flex items-center justify-center rounded-2xl px-4 py-2.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+    @apply inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
     border: 1px solid var(--border-subtle);
     background: rgba(255, 255, 255, 0.03);
     color: var(--text-primary);
@@ -86,7 +84,7 @@
   }
 
   .btn-danger {
-    @apply inline-flex items-center justify-center rounded-2xl px-4 py-2.5 text-sm font-medium transition-colors;
+    @apply inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-medium transition-colors;
     background: rgba(255, 69, 58, 0.14);
     color: #ffd2ce;
   }
@@ -94,7 +92,7 @@
   .input,
   .textarea,
   .stage-input {
-    @apply w-full rounded-2xl px-4 py-3 outline-none transition-all;
+    @apply w-full rounded-xl px-4 py-3 outline-none transition-all;
     border: 1px solid var(--border-subtle);
     background: rgba(255, 255, 255, 0.035);
     color: var(--text-primary);
@@ -114,10 +112,10 @@
   }
 
   .card {
-    @apply rounded-[28px] p-6;
+    @apply rounded-2xl p-6;
     border: 1px solid var(--border-subtle);
     background: rgba(255, 255, 255, 0.04);
-    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.16);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   }
 
   .badge {
@@ -170,9 +168,211 @@
   .font-display {
     font-family: var(--font-display), sans-serif;
   }
+
+  .admin-theme {
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8f8f9;
+    --bg-tertiary: #f0f0f2;
+    --bg-elevated: #ffffff;
+    --text-primary: #1a1a1a;
+    --text-secondary: #6b6b6e;
+    --text-tertiary: #a0a0a5;
+    --accent-primary: #d4963e;
+    --accent-primary-hover: #c78833;
+    --accent-primary-muted: rgba(212, 150, 62, 0.12);
+    --border-subtle: #e8e8ea;
+    --border-active: rgba(212, 150, 62, 0.42);
+    --surface-muted: #f8f8f9;
+    --surface-hover: #f0f0f2;
+    --surface-overlay: #ffffff;
+    --surface-accent: rgba(212, 150, 62, 0.08);
+    --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --font-display: var(--font-body);
+    position: relative;
+    isolation: isolate;
+    color: var(--text-primary);
+    background: linear-gradient(180deg, #ffffff 0%, #fbfbfc 100%);
+  }
+
+  .admin-theme::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: radial-gradient(circle at top left, rgba(212, 150, 62, 0.05), transparent 24%);
+    pointer-events: none;
+  }
+
+  .admin-theme .btn-primary {
+    background: var(--accent-primary);
+    color: #1a1a1a;
+    box-shadow: none;
+  }
+
+  .admin-theme .btn-primary:hover {
+    background: var(--accent-primary-hover);
+  }
+
+  .admin-theme .btn-secondary {
+    background: #ffffff;
+    color: var(--text-primary);
+  }
+
+  .admin-sidebar,
+  .admin-panel,
+  .admin-kpi {
+    border: 1px solid var(--border-subtle);
+    background: #ffffff;
+  }
+
+  .admin-sidebar {
+    border-radius: 16px;
+    background: var(--bg-secondary);
+    padding: 1rem;
+  }
+
+  .admin-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+
+  .admin-nav-link {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    border-left: 2px solid transparent;
+    border-radius: 12px;
+    padding: 0.72rem 0.85rem;
+    color: var(--text-secondary);
+    transition:
+      background-color 160ms ease,
+      border-left-color 160ms ease,
+      color 160ms ease;
+  }
+
+  .admin-nav-link:hover {
+    background: rgba(212, 150, 62, 0.04);
+    color: var(--text-primary);
+  }
+
+  .admin-nav-link[data-active="true"] {
+    border-left-color: var(--accent-primary);
+    background: rgba(212, 150, 62, 0.08);
+    color: var(--text-primary);
+  }
+
+  .admin-eyebrow {
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+  }
+
+  .admin-command-pill {
+    border: 1px solid var(--border-subtle);
+    border-radius: 999px;
+    background: #ffffff;
+    color: var(--text-secondary);
+    font-size: 0.78rem;
+    line-height: 1;
+    padding: 0.35rem 0.65rem;
+  }
+
+  .admin-segment {
+    @apply inline-flex items-center justify-center rounded-xl px-3.5 py-2 text-sm transition-colors;
+    border: 1px solid transparent;
+    color: var(--text-secondary);
+  }
+
+  .admin-segment[data-active="true"] {
+    border-color: var(--border-active);
+    background: #ffffff;
+    color: var(--text-primary);
+  }
+
+  .admin-code {
+    display: block;
+    overflow-x: auto;
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    background: var(--surface-muted);
+    color: var(--text-primary);
+    padding: 0.85rem 0.95rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    font-size: 0.83rem;
+    line-height: 1.5;
+  }
+
+  .admin-table-row {
+    border-bottom: 1px solid var(--border-subtle);
+    transition: background-color 160ms ease;
+  }
+
+  .admin-table-row:hover {
+    background: var(--surface-muted);
+  }
+
+  .admin-empty {
+    border: 1px dashed var(--border-subtle);
+    border-radius: 12px;
+    background: rgba(248, 248, 249, 0.8);
+  }
+
+  .admin-filter {
+    @apply rounded-xl px-3 py-2 text-sm;
+    border: 1px solid var(--border-subtle);
+    background: #ffffff;
+    color: var(--text-secondary);
+  }
+
+  .admin-metric {
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    background: #ffffff;
+    padding: 1rem;
+  }
+
+  .admin-list-item {
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    background: #ffffff;
+    padding: 0.9rem 1rem;
+  }
+
+  .admin-stat-bar {
+    height: 8px;
+    border-radius: 999px;
+    background: var(--surface-muted);
+    overflow: hidden;
+  }
+
+  .admin-stat-fill {
+    height: 100%;
+    border-radius: inherit;
+    background: var(--accent-primary);
+  }
+
+  .admin-note {
+    color: var(--text-secondary);
+    font-size: 0.92rem;
+    line-height: 1.65;
+  }
 }
 
 @layer utilities {
+  @keyframes shimmer {
+    0% {
+      background-position: 200% 0;
+    }
+
+    100% {
+      background-position: -200% 0;
+    }
+  }
+
   @keyframes pointer-ping-once {
     0% {
       transform: translate(-50%, -50%) scale(0.92);
@@ -192,5 +392,11 @@
 
   .animate-ping-once {
     animation: pointer-ping-once 240ms ease-out 1;
+  }
+
+  .animate-shimmer {
+    background: linear-gradient(90deg, #f4f4f5 0%, #fafafb 50%, #f4f4f5 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.2s linear infinite;
   }
 }

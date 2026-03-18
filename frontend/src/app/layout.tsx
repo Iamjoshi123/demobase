@@ -5,7 +5,7 @@ import "./globals.css";
 const instrumentSans = Instrument_Sans({
   subsets: ["latin"],
   variable: "--font-body",
-  weight: ["400", "500", "600"],
+  weight: ["400", "500"],
 });
 
 const jetbrainsMono = JetBrains_Mono({

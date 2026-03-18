@@ -225,7 +225,7 @@ describe("MeetingPageV2", () => {
     expect(browserCanvas?.className).not.toContain("opacity-0");
   });
 
-  it("does not render in-video annotations for browser interaction events", async () => {
+  it("renders a moving pointer and click highlight without text annotations", async () => {
     apiMock.startLive.mockResolvedValueOnce({
       mode: "live",
       livekit_url: "ws://localhost:7880",
@@ -247,17 +247,34 @@ describe("MeetingPageV2", () => {
     act(() => {
       MockWebSocket.instances[0].onmessage?.({
         data: JSON.stringify({
-          type: "browser_click",
+          type: "browser_pointer_move",
           x: 320,
           y: 180,
           width: 1280,
           height: 720,
-          label: "NO-ANNOTATION-LABEL",
         }),
       });
     });
 
-    expect(screen.queryByText("NO-ANNOTATION-LABEL")).not.toBeInTheDocument();
+    const pointer = screen.getByTestId("browser-pointer");
+    expect(pointer).toHaveStyle({ left: "25%", top: "25%", opacity: "1" });
+
+    act(() => {
+      MockWebSocket.instances[0].onmessage?.({
+        data: JSON.stringify({
+          type: "browser_click",
+          x: 640,
+          y: 360,
+          width: 1280,
+          height: 720,
+          label: "Sequences",
+        }),
+      });
+    });
+
+    expect(screen.getByTestId("browser-pointer")).toHaveStyle({ left: "50%", top: "50%", opacity: "1" });
+    expect(screen.getByTestId("browser-click-highlight")).toBeInTheDocument();
+    expect(screen.queryByText("Sequences")).not.toBeInTheDocument();
   });
 
   it("sends a question and renders the agent next actions", async () => {

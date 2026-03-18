@@ -15,6 +15,23 @@ import type {
 type ParsedMetadata = Record<string, unknown>;
 type SetupPhase = "creating" | "voice" | "browser" | "live" | "ready" | "failed";
 type BrowserStageState = "attaching" | "live" | "black_frames" | "errored";
+type BrowserPointerKind = "move" | "click" | "type" | "scroll";
+type BrowserPointerState = {
+  visible: boolean;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  kind: BrowserPointerKind;
+};
+type BrowserClickFeedbackState = {
+  visible: boolean;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  pulse: number;
+};
 
 const LANGUAGE_OPTIONS = [
   { value: "en", label: "English" },
@@ -54,6 +71,10 @@ function parseMetadata(source: string | null | undefined): ParsedMetadata {
   } catch {
     return {};
   }
+}
+
+function toStagePercent(value: number, total: number): string {
+  return `${(value / Math.max(total, 1)) * 100}%`;
 }
 
 function summarizeAction(action: string): string {
@@ -212,6 +233,22 @@ export default function MeetingPageV2() {
       return "en";
     }
   });
+  const [browserPointer, setBrowserPointer] = useState<BrowserPointerState>({
+    visible: false,
+    x: 0,
+    y: 0,
+    width: 1280,
+    height: 720,
+    kind: "move",
+  });
+  const [browserClickFeedback, setBrowserClickFeedback] = useState<BrowserClickFeedbackState>({
+    visible: false,
+    x: 0,
+    y: 0,
+    width: 1280,
+    height: 720,
+    pulse: 0,
+  });
   const [runtimeNote, setRuntimeNote] = useState("The stage is getting ready.");
   const [setupPhase, setSetupPhase] = useState<SetupPhase>("creating");
   const [setupProgress, setSetupProgress] = useState(8);
@@ -221,13 +258,15 @@ export default function MeetingPageV2() {
   const browserStageVideoRef = useRef<HTMLVideoElement>(null);
   const browserCanvasRef = useRef<HTMLCanvasElement>(null);
   const audioContainerRef = useRef<HTMLDivElement>(null);
-  const browserVideoReadyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const browserVideoReadyTimerRef = useRef<number | null>(null);
   const browserVideoElementRef = useRef<HTMLVideoElement | null>(null);
   const browserTrackReadyRef = useRef(false);
   const browserStageStateRef = useRef<BrowserStageState>("attaching");
   const browserRenderFrameRef = useRef<number | null>(null);
   const browserRenderLogCounterRef = useRef(0);
   const browserAttachStartedAtRef = useRef<number | null>(null);
+  const browserPointerHideTimerRef = useRef<number | null>(null);
+  const browserClickTimerRef = useRef<number | null>(null);
   const roomRef = useRef<any>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const closingLiveRef = useRef(false);
@@ -312,6 +351,89 @@ export default function MeetingPageV2() {
     setRuntimeNote(detail);
   }
 
+  function clearBrowserInteractionTimers() {
+    if (browserPointerHideTimerRef.current) {
+      clearTimeout(browserPointerHideTimerRef.current);
+      browserPointerHideTimerRef.current = null;
+    }
+    if (browserClickTimerRef.current) {
+      clearTimeout(browserClickTimerRef.current);
+      browserClickTimerRef.current = null;
+    }
+  }
+
+  function resetBrowserInteractionOverlay() {
+    clearBrowserInteractionTimers();
+    setBrowserPointer((previous) => ({
+      ...previous,
+      visible: false,
+    }));
+    setBrowserClickFeedback((previous) => ({
+      ...previous,
+      visible: false,
+    }));
+  }
+
+  function handleBrowserInteractionEvent(event: any, kind: BrowserPointerKind) {
+    setBrowserPointer((previous) => {
+      const width =
+        typeof event.width === "number"
+          ? event.width
+          : previous.width || browserCanvasRef.current?.width || browserStageVideoRef.current?.videoWidth || 1280;
+      const height =
+        typeof event.height === "number"
+          ? event.height
+          : previous.height || browserCanvasRef.current?.height || browserStageVideoRef.current?.videoHeight || 720;
+
+      return {
+        visible: true,
+        x: typeof event.x === "number" ? event.x : previous.x,
+        y: typeof event.y === "number" ? event.y : previous.y,
+        width,
+        height,
+        kind,
+      };
+    });
+
+    if (browserPointerHideTimerRef.current) {
+      clearTimeout(browserPointerHideTimerRef.current);
+    }
+    browserPointerHideTimerRef.current = window.setTimeout(() => {
+      setBrowserPointer((previous) => ({ ...previous, visible: false }));
+    }, 1800);
+
+    if (kind !== "click") {
+      return;
+    }
+
+    setBrowserClickFeedback((previous) => {
+      const width =
+        typeof event.width === "number"
+          ? event.width
+          : previous.width || browserCanvasRef.current?.width || browserStageVideoRef.current?.videoWidth || 1280;
+      const height =
+        typeof event.height === "number"
+          ? event.height
+          : previous.height || browserCanvasRef.current?.height || browserStageVideoRef.current?.videoHeight || 720;
+
+      return {
+        visible: true,
+        x: typeof event.x === "number" ? event.x : previous.x,
+        y: typeof event.y === "number" ? event.y : previous.y,
+        width,
+        height,
+        pulse: previous.pulse + 1,
+      };
+    });
+
+    if (browserClickTimerRef.current) {
+      clearTimeout(browserClickTimerRef.current);
+    }
+    browserClickTimerRef.current = window.setTimeout(() => {
+      setBrowserClickFeedback((previous) => ({ ...previous, visible: false }));
+    }, 420);
+  }
+
   async function disconnectLiveSession() {
     closingLiveRef.current = true;
     wsRef.current?.close();
@@ -347,6 +469,7 @@ export default function MeetingPageV2() {
       browserVideoReadyTimerRef.current = null;
     }
 
+    resetBrowserInteractionOverlay();
     setBrowserTrackReady(false);
     setBrowserStageState("attaching");
     browserAttachStartedAtRef.current = null;
@@ -566,7 +689,23 @@ export default function MeetingPageV2() {
       return;
     }
 
-    if (event.type === "browser_pointer_move" || event.type === "browser_click" || event.type === "browser_scroll" || event.type === "browser_type") {
+    if (event.type === "browser_pointer_move") {
+      handleBrowserInteractionEvent(event, "move");
+      return;
+    }
+
+    if (event.type === "browser_click") {
+      handleBrowserInteractionEvent(event, "click");
+      return;
+    }
+
+    if (event.type === "browser_scroll") {
+      handleBrowserInteractionEvent(event, "scroll");
+      return;
+    }
+
+    if (event.type === "browser_type") {
+      handleBrowserInteractionEvent(event, "type");
       return;
     }
 
@@ -1190,6 +1329,44 @@ export default function MeetingPageV2() {
                     </div>
                   </div>
                 )}
+                {browserClickFeedback.visible && (
+                  <div
+                    key={browserClickFeedback.pulse}
+                    data-testid="browser-click-highlight"
+                    className="pointer-events-none absolute z-[18] h-12 w-12 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-[rgba(232,168,76,0.88)] bg-[rgba(232,168,76,0.18)] shadow-[0_0_36px_rgba(232,168,76,0.38)] animate-ping-once"
+                    style={{
+                      left: toStagePercent(browserClickFeedback.x, browserClickFeedback.width),
+                      top: toStagePercent(browserClickFeedback.y, browserClickFeedback.height),
+                    }}
+                  />
+                )}
+                <div
+                  data-testid="browser-pointer"
+                  aria-hidden={!browserPointer.visible}
+                  className="pointer-events-none absolute z-[20] transition-[left,top,opacity] duration-200 ease-out"
+                  style={{
+                    left: toStagePercent(browserPointer.x, browserPointer.width),
+                    top: toStagePercent(browserPointer.y, browserPointer.height),
+                    opacity: browserPointer.visible ? 1 : 0,
+                  }}
+                >
+                  <div className="relative h-8 w-8">
+                    <svg
+                      viewBox="0 0 28 28"
+                      className="h-8 w-8 drop-shadow-[0_10px_20px_rgba(0,0,0,0.45)]"
+                      fill="none"
+                    >
+                      <path
+                        d="M5.5 3.5L19.5 15.2H12.9L10.1 24.2L6.8 22.7L9.5 14.3H5.5V3.5Z"
+                        fill="rgba(255,255,255,0.98)"
+                        stroke="rgba(15,15,18,0.92)"
+                        strokeWidth="1.8"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                    <span className="absolute left-[7px] top-[8px] h-2.5 w-2.5 rounded-full bg-[var(--accent-primary)] shadow-[0_0_14px_rgba(232,168,76,0.72)]" />
+                  </div>
+                </div>
 
                 <div className="absolute left-3 top-3 flex flex-wrap items-center gap-2">
                   {audioReady && <span className="stage-pill">Agent audio on</span>}

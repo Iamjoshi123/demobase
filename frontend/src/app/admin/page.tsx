@@ -1,165 +1,201 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import { api } from "@/lib/api";
-import type { Workspace } from "@/types/api";
 
-export default function AdminPage() {
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({
-    name: "",
-    description: "",
-    product_url: "",
-    allowed_domains: "",
-    browser_auth_mode: "credentials",
-  });
+import { AdminShell, useAdminWorkspace } from "@/components/admin-shell";
+import {
+  averageDurationSeconds,
+  completionRate,
+  formatDateTime,
+  formatDuration,
+  handoffRate,
+  recentReports,
+  topFeatureInterests,
+  topObjections,
+  topQuestionThemes,
+  unresolvedHighlights,
+} from "@/lib/admin-reporting";
+import { useWorkspaceReportBundle } from "@/lib/use-workspace-report-bundle";
 
-  useEffect(() => {
-    loadWorkspaces();
-  }, []);
+function DashboardSkeleton() {
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div key={index} className="admin-metric">
+            <div className="h-4 w-20 rounded animate-shimmer" />
+            <div className="mt-4 h-8 w-24 rounded animate-shimmer" />
+            <div className="mt-2 h-4 w-28 rounded animate-shimmer" />
+          </div>
+        ))}
+      </div>
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.4fr)_360px]">
+        <div className="admin-panel rounded-[16px] px-5 py-5">
+          <div className="h-5 w-40 rounded animate-shimmer" />
+          <div className="mt-4 space-y-3">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div key={index} className="h-16 rounded animate-shimmer" />
+            ))}
+          </div>
+        </div>
+        <div className="space-y-4">
+          <div className="admin-panel rounded-[16px] px-5 py-5">
+            <div className="h-5 w-28 rounded animate-shimmer" />
+            <div className="mt-4 h-24 rounded animate-shimmer" />
+          </div>
+          <div className="admin-panel rounded-[16px] px-5 py-5">
+            <div className="h-5 w-28 rounded animate-shimmer" />
+            <div className="mt-4 h-24 rounded animate-shimmer" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
-  async function loadWorkspaces() {
-    try {
-      const data = await api.listWorkspaces();
-      setWorkspaces(data);
-    } catch (e) {
-      console.error("Failed to load workspaces:", e);
-    } finally {
-      setLoading(false);
-    }
+function DashboardContent() {
+  const { selectedWorkspaceId, selectedWorkspace } = useAdminWorkspace();
+  const { bundle, loading, error } = useWorkspaceReportBundle(selectedWorkspaceId);
+
+  if (!selectedWorkspaceId && !selectedWorkspace) {
+    return <div className="admin-empty px-6 py-12 text-sm text-[var(--text-secondary)]">Create a product first to see dashboard insights.</div>;
   }
 
-  async function handleCreate(e: React.FormEvent) {
-    e.preventDefault();
-    try {
-      await api.createWorkspace(form);
-      setForm({
-        name: "",
-        description: "",
-        product_url: "",
-        allowed_domains: "",
-        browser_auth_mode: "credentials",
-      });
-      setShowCreate(false);
-      loadWorkspaces();
-    } catch (e) {
-      console.error("Failed to create workspace:", e);
-    }
+  if (loading && !bundle) {
+    return <DashboardSkeleton />;
   }
+
+  if (error && !bundle) {
+    return <div className="admin-empty px-6 py-12 text-sm text-[var(--text-secondary)]">{error}</div>;
+  }
+
+  if (!bundle) {
+    return null;
+  }
+
+  const metrics = [
+    {
+      label: "Total sessions",
+      value: String(bundle.analytics.total_sessions),
+      note: `${bundle.analytics.completed_sessions} completed demos`,
+    },
+    {
+      label: "Avg duration",
+      value: formatDuration(averageDurationSeconds(bundle.reports)),
+      note: "Across completed sessions",
+    },
+    {
+      label: "Completion",
+      value: `${completionRate(bundle.analytics)}%`,
+      note: "Sessions reaching an end state",
+    },
+    {
+      label: "Handoff",
+      value: `${handoffRate(bundle.reports)}%`,
+      note: "Sessions that requested follow-up",
+    },
+  ];
+
+  const recent = recentReports(bundle.reports, 5);
+  const topQuestions = topQuestionThemes(bundle.reports, 4);
+  const interests = topFeatureInterests(bundle.reports, 4);
+  const objections = topObjections(bundle.reports, 4);
+  const gaps = unresolvedHighlights(bundle.reports);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div>
-            <Link href="/" className="text-sm text-gray-500 hover:text-gray-700">
-              &larr; Home
+    <div className="space-y-4">
+      <section className="grid gap-4 lg:grid-cols-4">
+        {metrics.map((metric) => (
+          <div key={metric.label} className="admin-metric">
+            <p className="admin-eyebrow">{metric.label}</p>
+            <p className="mt-4 text-[2rem] tracking-[-0.05em] text-[var(--text-primary)]">{metric.value}</p>
+            <p className="mt-2 text-sm text-[var(--text-secondary)]">{metric.note}</p>
+          </div>
+        ))}
+      </section>
+
+      <section className="grid gap-4 xl:grid-cols-[minmax(0,1.45fr)_360px]">
+        <div className="admin-panel rounded-[16px] px-5 py-5">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="admin-eyebrow">What happened</p>
+              <h2 className="mt-2 text-[1.5rem] tracking-[-0.04em] text-[var(--text-primary)]">Recent sessions</h2>
+            </div>
+            <Link href={`/admin/sessions?workspaceId=${bundle.workspace.id}`} className="btn-secondary">
+              View all
             </Link>
-            <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
           </div>
-          <button onClick={() => setShowCreate(true)} className="btn-primary">
-            + New Workspace
-          </button>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-6 py-8">
-        {showCreate && (
-          <div className="card mb-8">
-            <h2 className="text-lg font-semibold mb-4">Create Workspace</h2>
-            <form onSubmit={handleCreate} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
-                <input
-                  className="input"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="e.g., Acme CRM Pro"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                <textarea
-                  className="textarea"
-                  value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  placeholder="Brief product description..."
-                  rows={2}
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Product URL</label>
-                  <input
-                    className="input"
-                    value={form.product_url}
-                    onChange={(e) => setForm({ ...form, product_url: e.target.value })}
-                    placeholder="https://app.example.com"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Allowed Domains</label>
-                  <input
-                    className="input"
-                    value={form.allowed_domains}
-                    onChange={(e) => setForm({ ...form, allowed_domains: e.target.value })}
-                    placeholder="example.com, app.example.com"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Browser Auth Mode</label>
-                <select
-                  className="input"
-                  value={form.browser_auth_mode}
-                  onChange={(e) => setForm({ ...form, browser_auth_mode: e.target.value })}
-                >
-                  <option value="credentials">Sandbox credentials</option>
-                  <option value="none">No login required</option>
-                </select>
-              </div>
-              <div className="flex gap-2">
-                <button type="submit" className="btn-primary">Create</button>
-                <button type="button" onClick={() => setShowCreate(false)} className="btn-secondary">Cancel</button>
-              </div>
-            </form>
-          </div>
-        )}
-
-        {loading ? (
-          <p className="text-gray-500">Loading workspaces...</p>
-        ) : workspaces.length === 0 ? (
-          <div className="card text-center py-12">
-            <p className="text-gray-500 mb-4">No workspaces yet. Create your first one to get started.</p>
-            <button onClick={() => setShowCreate(true)} className="btn-primary">
-              + New Workspace
-            </button>
-          </div>
-        ) : (
-          <div className="grid gap-4">
-            {workspaces.map((ws) => (
-              <Link key={ws.id} href={`/admin/workspaces/${ws.id}`} className="card hover:shadow-md transition-shadow">
-                <div className="flex items-center justify-between">
+          <div className="mt-4 space-y-3">
+            {recent.map((report) => (
+              <Link
+                key={report.session.id}
+                href={`/admin/sessions?workspaceId=${bundle.workspace.id}&session=${report.session.id}`}
+                className="admin-list-item block"
+              >
+                <div className="flex items-center justify-between gap-3">
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900">{ws.name}</h3>
-                    <p className="text-sm text-gray-500 mt-1">{ws.description || "No description"}</p>
-                    <div className="flex gap-3 mt-2 text-xs text-gray-400">
-                      <span>Token: {ws.public_token}</span>
-                      <span>Auth: {ws.browser_auth_mode === "none" ? "No login" : "Credentials"}</span>
-                      <span>Created: {new Date(ws.created_at).toLocaleDateString()}</span>
-                    </div>
+                    <p className="text-sm text-[var(--text-primary)]">{report.session.buyer_name || "Anonymous prospect"}</p>
+                    <p className="mt-1 text-sm text-[var(--text-secondary)]">
+                      {formatDateTime(report.session.started_at)} · {formatDuration(report.summary?.duration_seconds)}
+                    </p>
                   </div>
-                  <div className="text-gray-400">&rarr;</div>
+                  <p className="text-sm text-[var(--text-secondary)]">{report.summary?.lead_intent_score ?? 0}/100</p>
                 </div>
               </Link>
             ))}
           </div>
-        )}
-      </main>
+        </div>
+
+        <div className="space-y-4">
+          <div className="admin-panel rounded-[16px] px-5 py-5">
+            <p className="admin-eyebrow">What is working</p>
+            <div className="mt-4 space-y-4">
+              <div>
+                <p className="text-sm text-[var(--text-primary)]">Top questions</p>
+                <ul className="mt-2 space-y-2 text-sm text-[var(--text-secondary)]">
+                  {topQuestions.length > 0 ? topQuestions.map((item) => <li key={item.label}>{item.label}</li>) : <li>No repeated themes yet.</li>}
+                </ul>
+              </div>
+              <div>
+                <p className="text-sm text-[var(--text-primary)]">Features explored</p>
+                <ul className="mt-2 space-y-2 text-sm text-[var(--text-secondary)]">
+                  {interests.length > 0 ? interests.map((item) => <li key={item.label}>{item.label}</li>) : <li>No feature patterns yet.</li>}
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div className="admin-panel rounded-[16px] px-5 py-5">
+            <p className="admin-eyebrow">What needs attention</p>
+            <div className="mt-4 space-y-4">
+              <div>
+                <p className="text-sm text-[var(--text-primary)]">Knowledge gaps</p>
+                <ul className="mt-2 space-y-2 text-sm text-[var(--text-secondary)]">
+                  {gaps.length > 0 ? gaps.map((item) => <li key={item}>“{item}”</li>) : <li>No unresolved questions detected.</li>}
+                </ul>
+              </div>
+              <div>
+                <p className="text-sm text-[var(--text-primary)]">Objections</p>
+                <ul className="mt-2 space-y-2 text-sm text-[var(--text-secondary)]">
+                  {objections.length > 0 ? objections.map((item) => <li key={item.label}>{item.label}</li>) : <li>No objections captured yet.</li>}
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
+  );
+}
+
+export default function AdminDashboardPage() {
+  return (
+    <AdminShell
+      title="Dashboard"
+      description="Your morning briefing for demo activity, engagement, and the gaps worth fixing next."
+      actions={<Link href="/admin/products" className="btn-secondary">Manage products</Link>}
+    >
+      <DashboardContent />
+    </AdminShell>
   );
 }

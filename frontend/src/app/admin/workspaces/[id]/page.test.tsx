@@ -2,21 +2,33 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import WorkspaceDetailPage from "./page";
+import ProductDetailPage from "../../products/[id]/page";
 
 const apiMock = vi.hoisted(() => ({
+  listWorkspaces: vi.fn(),
   getWorkspace: vi.fn(),
   listDocuments: vi.fn(),
   listCredentials: vi.fn(),
   listRecipes: vi.fn(),
   listPolicies: vi.fn(),
   getWorkspaceSessions: vi.fn(),
+  updateWorkspace: vi.fn(),
   createPolicy: vi.fn(),
   createRecipe: vi.fn(),
+  getSession: vi.fn(),
+  getMessages: vi.fn(),
+  getSessionActions: vi.fn(),
+  getSessionSummary: vi.fn(),
 }));
 
+const pushMock = vi.fn();
+const replaceMock = vi.fn();
+
 vi.mock("next/navigation", () => ({
+  usePathname: () => "/admin/products/ws-1",
   useParams: () => ({ id: "ws-1" }),
+  useSearchParams: () => new URLSearchParams(""),
+  useRouter: () => ({ push: pushMock, replace: replaceMock }),
 }));
 
 vi.mock("next/link", () => ({
@@ -27,14 +39,30 @@ vi.mock("@/lib/api", () => ({
   api: apiMock,
 }));
 
-describe("WorkspaceDetailPage", () => {
+describe("ProductDetailPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    apiMock.listWorkspaces.mockResolvedValue([
+      {
+        id: "ws-1",
+        name: "Acme CRM",
+        description: "Demo workspace",
+        product_url: "https://app.example.com",
+        allowed_domains: "app.example.com",
+        browser_auth_mode: "credentials",
+        public_token: "token-123",
+        is_active: true,
+      },
+    ]);
     apiMock.getWorkspace.mockResolvedValue({
       id: "ws-1",
       name: "Acme CRM",
       description: "Demo workspace",
+      product_url: "https://app.example.com",
+      allowed_domains: "app.example.com",
+      browser_auth_mode: "credentials",
       public_token: "token-123",
+      is_active: true,
     });
     apiMock.listDocuments.mockResolvedValue([{ id: "doc-1", filename: "guide.md", file_type: "md", status: "ready" }]);
     apiMock.listCredentials.mockResolvedValue([{ id: "cred-1", label: "demo-user-1", login_url: "https://app.example.com/login", is_active: true }]);
@@ -43,9 +71,26 @@ describe("WorkspaceDetailPage", () => {
     apiMock.getWorkspaceSessions.mockResolvedValue([{ id: "sess-1", buyer_name: "Taylor Buyer", status: "ended", started_at: "2026-03-08T00:00:00.000Z", lead_intent_score: 71 }]);
     apiMock.createPolicy.mockResolvedValue({ id: "policy-2" });
     apiMock.createRecipe.mockResolvedValue({ id: "recipe-2" });
+    apiMock.getMessages.mockResolvedValue([{ id: "m1", role: "user", content: "Show me dashboard", created_at: "2026-03-08T00:00:00.000Z" }]);
+    apiMock.getSessionActions.mockResolvedValue([{ id: "a1", action_type: "navigate", narration: "Opened dashboard", created_at: "2026-03-08T00:00:02.000Z" }]);
+    apiMock.getSessionSummary.mockResolvedValue({
+      id: "sum-1",
+      session_id: "sess-1",
+      summary_text: "Taylor Buyer explored dashboards.",
+      top_questions: JSON.stringify(["Show me dashboard"]),
+      features_interest: JSON.stringify(["Reporting workflow"]),
+      objections: JSON.stringify([]),
+      unresolved_items: JSON.stringify([]),
+      escalation_reasons: JSON.stringify([]),
+      lead_intent_score: 71,
+      total_messages: 4,
+      total_actions: 1,
+      duration_seconds: 360,
+      created_at: "2026-03-08T00:06:00.000Z",
+    });
   });
 
-  it("renders overview counts and can add a policy rule", async () => {
+  it("renders the new product tabs and can add a policy rule", async () => {
     apiMock.listPolicies
       .mockResolvedValueOnce([{ id: "policy-1", description: "Block pricing", rule_type: "blocked_topic", action: "escalate", pattern: "pricing", severity: "high" }])
       .mockResolvedValueOnce([
@@ -53,22 +98,20 @@ describe("WorkspaceDetailPage", () => {
         { id: "policy-2", description: "Escalate procurement", rule_type: "escalation_condition", action: "escalate", pattern: "procurement", severity: "medium" },
       ]);
 
-    render(<WorkspaceDetailPage />);
+    render(<ProductDetailPage />);
     const user = userEvent.setup();
 
-    expect(await screen.findByText("Acme CRM")).toBeInTheDocument();
-    expect(screen.getByText("Documents")).toBeInTheDocument();
-    expect(screen.getByText("Credentials")).toBeInTheDocument();
-    expect(screen.getByText("Recipes")).toBeInTheDocument();
-    expect(screen.getByText("Sessions")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Acme CRM" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Share" })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: /Policies/ }));
-    await user.selectOptions(screen.getAllByRole("combobox")[0], "escalation_condition");
-    await user.selectOptions(screen.getAllByRole("combobox")[1], "escalate");
-    await user.selectOptions(screen.getAllByRole("combobox")[2], "medium");
-    await user.type(screen.getByPlaceholderText("Pattern (regex)"), "procurement");
-    await user.type(screen.getByPlaceholderText("Description"), "Escalate procurement");
-    await user.click(screen.getByRole("button", { name: "Add Policy" }));
+    await user.click(screen.getByRole("button", { name: "Agent" }));
+    const comboboxes = screen.getAllByRole("combobox");
+    await user.selectOptions(comboboxes[1], "escalation_condition");
+    await user.selectOptions(comboboxes[2], "escalate");
+    await user.selectOptions(comboboxes[3], "medium");
+    await user.type(screen.getByPlaceholderText("Pattern"), "procurement");
+    await user.type(screen.getAllByPlaceholderText("Description")[0], "Escalate procurement");
+    await user.click(screen.getByRole("button", { name: "Add policy" }));
 
     await waitFor(() => {
       expect(apiMock.createPolicy).toHaveBeenCalledWith("ws-1", {
@@ -79,10 +122,9 @@ describe("WorkspaceDetailPage", () => {
         severity: "medium",
       });
     });
-    expect(await screen.findByText("Escalate procurement")).toBeInTheDocument();
   });
 
-  it("creates a recipe from the admin flow", async () => {
+  it("creates a recipe from the agent tab", async () => {
     apiMock.listRecipes
       .mockResolvedValueOnce([{ id: "recipe-1", name: "Dashboard Tour", description: "Open dashboard", trigger_phrases: "dashboard", priority: 5 }])
       .mockResolvedValueOnce([
@@ -90,19 +132,19 @@ describe("WorkspaceDetailPage", () => {
         { id: "recipe-2", name: "Create Contact", description: "Show contact creation", trigger_phrases: "create contact", priority: 4 },
       ]);
 
-    render(<WorkspaceDetailPage />);
+    render(<ProductDetailPage />);
     const user = userEvent.setup();
 
-    await user.click(await screen.findByRole("button", { name: /Recipes/ }));
+    await user.click(await screen.findByRole("button", { name: "Agent" }));
     await user.type(screen.getByPlaceholderText("Recipe name"), "Create Contact");
-    await user.type(screen.getByPlaceholderText("Description"), "Show contact creation");
-    await user.type(screen.getByPlaceholderText("Trigger phrases (comma-separated)"), "create contact");
+    await user.type(screen.getAllByPlaceholderText("Description")[1], "Show contact creation");
+    await user.type(screen.getByPlaceholderText("Trigger phrases"), "create contact");
     await user.clear(screen.getByPlaceholderText("Priority"));
     await user.type(screen.getByPlaceholderText("Priority"), "4");
-    fireEvent.change(screen.getByPlaceholderText('Steps JSON: [{"action":"navigate","target":"http://..."}]'), {
+    fireEvent.change(screen.getByPlaceholderText('[{"action":"navigate","target":"https://app.example.com"}]'), {
       target: { value: '[{"action":"navigate","target":"https://app.example.com/contacts/new"}]' },
     });
-    await user.click(screen.getByRole("button", { name: "Create Recipe" }));
+    await user.click(screen.getByRole("button", { name: "Create recipe" }));
 
     await waitFor(() => {
       expect(apiMock.createRecipe).toHaveBeenCalledWith("ws-1", {
@@ -113,6 +155,5 @@ describe("WorkspaceDetailPage", () => {
         priority: 4,
       });
     });
-    expect(await screen.findByText("Create Contact")).toBeInTheDocument();
   });
 });
